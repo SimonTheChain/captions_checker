@@ -1,0 +1,15 @@
+beautifulsoup4==4.4.1
+cssutils==1.0.2
+enum34==1.1.6
+future==0.16.0
+html5lib==1.0b8
+lxml==4.1.1
+nltk==3.2.5
+numpy==1.13.3
+pandas==0.21.0
+pycaption==1.0.1
+python-dateutil==2.6.1
+pytz==2017.3
+six==1.11.0
+timecode==0.4.2
+webencodings==0.5.1
