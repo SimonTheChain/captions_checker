@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tt xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.w3.org/ns/ttml" xmlns:tt="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling"
+  xmlns:ttp="http://www.w3.org/ns/ttml#parameter" xml:lang="en-GB" ttp:timeBase="smpte" ttp:frameRate="24" ttp:frameRateMultiplier="999 1000" ttp:dropMode="nonDrop">
+  <head>
+    <styling>
+      <style xml:id="white" tts:fontFamily="sansSerif" tts:fontWeight="normal" tts:fontStyle="normal" tts:color="white" tts:fontSize="100%"/>
+    </styling>
+    <layout>
+      <region xml:id="bottom" tts:origin="0% 85%" tts:extent="100% 15%" tts:textAlign="center" tts:displayAlign="after"/>
+    </layout>
+  </head>
+  <body style="white" region="bottom">
+    <div begin="-00:00:00:00">
+      <p begin="00:24:21:10" end="00:24:23:16">I&apos;ve spent my whole life learning their cuisine...</p>
+      <p begin="00:24:23:17" end="00:24:24:19">...what a waste of time</p>
+    </div>
+  </body>
+</tt>
