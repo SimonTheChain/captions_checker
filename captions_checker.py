@@ -85,7 +85,10 @@ class CaptionApp(object):
         """
         if isinstance(fps, str):
             _zip_ft = zip((3600, 60, 1, 1 / framerate), fps.split(':'))
-            return sum(f * float(t) for f, t in _zip_ft)
+            return sum(
+                f * float(t)
+                for f, t in _zip_ft
+            )
 
         elif isinstance(fps, (int, float)):
             return fps / framerate
@@ -112,20 +115,19 @@ class CaptionApp(object):
         """
         Fills the captions dictionary from the html object
         """
+        caps_lst = []
         for p in html_obj.find_all("p"):
             # create datetime object from seconds
             start = datetime.datetime.strptime(p["begin"], "%H:%M:%S.%f")
             stop = datetime.datetime.strptime(p["end"], "%H:%M:%S.%f")
 
+            # add values to list
+            caps_lst.append((start.time(), stop.time(), p.text))
+
             # add values to dictionary
             self.captions[start.time()] = (stop.time(), p.text)
 
-            # DEBUG
-            # print("\n{} - {}\n{}\n".format(
-            #     start.time(),
-            #     stop.time(),
-            #     p.text
-            # ))
+        return self.captions
 
     def read_subs(self, html_obj):
         """
@@ -192,17 +194,27 @@ class CaptionApp(object):
             #         ),
             #     )
 
-            subs_lst = list(self.faulty_subs.items())
-            cap_lst = list(self.faulty_captions.items())
+            subs_lst = list(
+                [
+                    (k, v[0], v[1])
+                    for k, v in self.faulty_subs.items()
+                ]
+            )
+            cap_lst = list(
+                [
+                    (k, v[0], v[1])
+                    for k, v in self.faulty_captions.items()
+                ]
+            )
 
-            for values in subs_lst:
-                index_lst = subs_lst.index(values)
+            for index_v, values in enumerate(subs_lst):
+                # index_lst = subs_lst.index(values)
                 sub_start = values[0]
-                sub_stop = values[1][0]
-                sub_text = values[1][1]
-                cap_start = cap_lst[index_lst][0]
-                cap_stop = cap_lst[index_lst][1][0]
-                cap_text = cap_lst[index_lst][1][1]
+                sub_stop = values[1]
+                sub_text = values[2]
+                cap_start = cap_lst[index_v][0]
+                cap_stop = cap_lst[index_v][1]
+                cap_text = cap_lst[index_v][2]
 
                 report.write(
                     "\nSub:\n{} - {}\n{}\n\nOverlaps with caption:\n{} - {}\n{}\n".format(
@@ -219,16 +231,35 @@ class CaptionApp(object):
         """
         Creates a dataframe from the captions and subs dictionaries
         """
-        captions_df = pd.DataFrame(list(self.captions.items()))
-        captions_df.columns = ["Timecode In", "Timecode Out"]
-        # captions_df.set_index("Timecode In", inplace=True)
+        captions_df = pd.DataFrame(
+            list(
+                [
+                    (k, v[0], v[1])
+                    for k, v in self.faulty_captions.items()
+                ]
+            )
+        )
+        captions_df.columns = ["Timecode In", "Timecode Out", "Text"]
 
-        subs_df = pd.DataFrame(list(self.subs.items()))
-        subs_df.columns = ["Timecode In", "Timecode Out"]
+        subs_df = pd.DataFrame(
+            list(
+                [
+                    (k, v[0], v[1])
+                    for k, v in self.faulty_subs.items()
+                ]
+            )
+        )
+        subs_df.columns = ["Timecode In", "Timecode Out", "Text"]
 
-        # DEBUG
-        print("\nCaptions:\n", captions_df.head())
-        print("\nSubs:\n", subs_df.head())
+        return subs_df, captions_df
+
+    @staticmethod
+    def print_dataframe(*args):
+        """
+        Saves the dataframe to a text file
+        """
+        for index_a, arg in enumerate(args):
+            arg.to_csv("dataframe_{}.txt".format(index_a), header=True, index=True, sep='\t', mode='a')
 
     def plot_dataframe(self):
         """
@@ -258,11 +289,12 @@ def main():
     app.create_report()
 
     # prepare and present results
-    # app.create_dataframe()
+    subs_df, cap_df = app.create_dataframe()
+    app.print_dataframe(subs_df, cap_df)
     # app.plot_dataframe()
 
     # quit program
-    print("Program completed.")
+    print("\n\nProgram completed.")
     raise SystemExit
 
 
