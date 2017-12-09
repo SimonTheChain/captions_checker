@@ -12,7 +12,7 @@ from collections import OrderedDict
 
 import pandas as pd
 from bs4 import BeautifulSoup
-from pycaption import SCCReader, CaptionConverter, DFXPWriter, transcript, SRTWriter, SAMIWriter, WebVTTWriter
+from pycaption import SCCReader, CaptionConverter, DFXPWriter
 from timecode import Timecode
 
 
@@ -30,11 +30,12 @@ class CaptionApp(object):
         """
         Defines the object attributes
         """
-        self.captions = OrderedDict()
-        self.subs = OrderedDict()
-        self.faulty_subs = OrderedDict()
-        self.scc = ""
-        self.itt = ""
+        self.captions = OrderedDict()  # start tc: stop tc, text
+        self.subs = OrderedDict()  # start tc: stop tc, text
+        self.faulty_subs = OrderedDict()  # start tc: stop tc, text
+        self.faulty_captions = OrderedDict()  # start tc: stop tc, text
+        self.scc = ""  # filename
+        self.itt = ""  # filename
 
     def read_file(self, afile):
         """
@@ -85,13 +86,18 @@ class CaptionApp(object):
         if isinstance(fps, str):
             _zip_ft = zip((3600, 60, 1, 1 / framerate), fps.split(':'))
             return sum(f * float(t) for f, t in _zip_ft)
+
         elif isinstance(fps, (int, float)):
             return fps / framerate
+
         else:
             return 0
 
     @staticmethod
     def convert_timecode(source_tc):
+        """
+        Converts timecode between two framerates
+        """
         tc_obj = Timecode("23.98", source_tc)
         mod_tc = Timecode("29.97", frames=tc_obj.frames)
         tc_str = "{}:{}:{}.{}".format(
@@ -104,10 +110,9 @@ class CaptionApp(object):
 
     def read_captions(self, html_obj):
         """
-        Fills the captions dictionary from the html obj
+        Fills the captions dictionary from the html object
         """
         for p in html_obj.find_all("p"):
-            start_tc = self.convert_timecode(p["begin"])
             # create datetime object from seconds
             start = datetime.datetime.strptime(p["begin"], "%H:%M:%S.%f")
             stop = datetime.datetime.strptime(p["end"], "%H:%M:%S.%f")
@@ -116,15 +121,15 @@ class CaptionApp(object):
             self.captions[start.time()] = (stop.time(), p.text)
 
             # DEBUG
-            print("\n{} - {}\n{}\n".format(
-                start.time(),
-                stop.time(),
-                p.text
-            ))
+            # print("\n{} - {}\n{}\n".format(
+            #     start.time(),
+            #     stop.time(),
+            #     p.text
+            # ))
 
     def read_subs(self, html_obj):
         """
-        Fills the subs dictionary from the html obj
+        Fills the subs dictionary from the html object
         """
         for p in html_obj.find_all("p"):
             # convert timecode to seconds
@@ -149,19 +154,25 @@ class CaptionApp(object):
         for cap_start, cap_stop in self.captions.items():
             for sub_start, sub_stop in self.subs.items():
 
+                # if the sub starts after the caption starts
                 if sub_start >= cap_start:
+                    # if the sub starts before the caption stops
                     if sub_start <= cap_stop[0]:
                         self.faulty_subs[sub_start] = (sub_stop[0], sub_stop[1])
+                        self.faulty_captions[cap_start] = (cap_stop[0], cap_stop[1])
 
+                # if the sub stops after the caption starts
                 if sub_stop[0] >= cap_start:
+                    # if the sub stops before the caption stops
                     if sub_stop[0] <= cap_stop[0]:
                         self.faulty_subs[sub_start] = (sub_stop[0], sub_stop[1])
+                        self.faulty_captions[cap_start] = (cap_stop[0], cap_stop[1])
 
     def create_report(self):
         """
         Writes a text report of the overlapping subs
         """
-        with open("overlap_report.txt", "w", encoding="utf-8") as report:
+        with open("overlap_report_rev1.txt", "w", encoding="utf-8") as report:
             report.write(
                 "OVERLAP REPORT\n"
                 "Captions: {}\n"
@@ -172,12 +183,35 @@ class CaptionApp(object):
             )
             report.write("\nOverlapping subs:\n")
 
-            for k, v in self.faulty_subs.items():
+            # for k, v in self.faulty_subs.items():
+            #     report.write(
+            #         "\nSub:\n{} - {}\n{}\n".format(
+            #             k,
+            #             v[0],
+            #             v[1]
+            #         ),
+            #     )
+
+            subs_lst = list(self.faulty_subs.items())
+            cap_lst = list(self.faulty_captions.items())
+
+            for values in subs_lst:
+                index_lst = subs_lst.index(values)
+                sub_start = values[0]
+                sub_stop = values[1][0]
+                sub_text = values[1][1]
+                cap_start = cap_lst[index_lst][0]
+                cap_stop = cap_lst[index_lst][1][0]
+                cap_text = cap_lst[index_lst][1][1]
+
                 report.write(
-                    "\n{} - {}\n{}\n".format(
-                        k,
-                        v[0],
-                        v[1],
+                    "\nSub:\n{} - {}\n{}\n\nOverlaps with caption:\n{} - {}\n{}\n".format(
+                        sub_start,
+                        sub_stop,
+                        sub_text,
+                        cap_start,
+                        cap_stop,
+                        cap_text
                     ),
                 )
 
@@ -211,12 +245,12 @@ def main():
     app = CaptionApp()
 
     # process captions
-    captions = app.read_file("000031_FR_full_caption_fr-FR.scc")
+    captions = app.read_file("captions_subs/000031_FR_full_caption_fr-FR.scc")
     dfxp = app.convert_captions(captions)
     app.read_captions(app.parse_html(dfxp))
 
     # process subs
-    subs = app.read_file("000031_FR_full_forcedsubtitle_fr-FR.itt")
+    subs = app.read_file("captions_subs/000031_FR_full_forcedsubtitle_fr-FR.itt")
     app.read_subs(app.parse_html(subs))
 
     # check overlap:
@@ -228,6 +262,7 @@ def main():
     # app.plot_dataframe()
 
     # quit program
+    print("Program completed.")
     raise SystemExit
 
 
