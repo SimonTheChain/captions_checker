@@ -8,7 +8,6 @@
 
 import datetime
 import os
-from collections import OrderedDict
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -47,7 +46,7 @@ class OverlapChecker(object):
 
     def set_filename(self, filename):
         """
-        Validates the file types and sets the filenames
+        Validates the file types and sets the file paths
         """
         if os.path.splitext(filename)[1] == ".scc":
             self.scc = os.path.basename(filename)
@@ -144,7 +143,7 @@ class OverlapChecker(object):
 
     def read_captions(self, html_obj):
         """
-        Fills the captions dictionary from the html object
+        Fills the captions list from the html object
         """
         for p in html_obj.find_all("p"):
 
@@ -175,7 +174,7 @@ class OverlapChecker(object):
 
     def read_subs(self, html_obj):
         """
-        Fills the subs dictionary from the html object
+        Fills the subs list from the html object
         """
         for br in html_obj.find_all("br"):
             br.replace_with("\n")
@@ -183,16 +182,13 @@ class OverlapChecker(object):
         for p in html_obj.find_all("p"):
 
             # convert timecode to seconds
-            start_time = self.fps_to_seconds(p["begin"], 23.98)
-            stop_time = self.fps_to_seconds(p["end"], 23.98)
+            start_time = self.fps_to_seconds(p["begin"], 23.976)
+            stop_time = self.fps_to_seconds(p["end"], 23.976)
 
             # create datetime object from seconds
-            start = datetime.datetime.fromtimestamp(start_time)
-            stop = datetime.datetime.fromtimestamp(stop_time)
-
-            # standardize the subs to the captions
-            start_clean = start.replace(year=1900, month=1, day=1, hour=start.hour - 19)
-            stop_clean = stop.replace(year=1900, month=1, day=1, hour=start.hour - 19)
+            temp_time = datetime.datetime(1900, 1, 1, 0, 0, 0)
+            start = temp_time + datetime.timedelta(seconds=start_time)
+            stop = temp_time + datetime.timedelta(seconds=stop_time)
 
             # set region info
             region = "bottom"
@@ -209,8 +205,8 @@ class OverlapChecker(object):
             # add tuple of values to list
             self.subs.append(
                 (
-                    start_clean.time(),
-                    stop_clean.time(),
+                    start.time(),
+                    stop.time(),
                     region,
                     p.text.replace("&apos;", "'").replace("&amp;", "&")
                 )
@@ -272,7 +268,7 @@ class OverlapChecker(object):
 
     def create_dataframes(self):
         """
-        Creates dataframes from the captions and subs lists
+        Creates dataframes from the list of overlaps
         """
         captions_df = pd.DataFrame([x[0] for x in self.overlaps])
         captions_df.drop_duplicates(inplace=True)
@@ -436,7 +432,7 @@ class OverlapChecker(object):
             # draw caption
             bbox_props = dict(boxstyle="square,pad=0", fill=True, color="black", alpha=0.5, zorder=80)
             cap_font = {"fontname": "DejaVu Sans Mono"}
-            ax.text(
+            cap_box = ax.text(
                 cap_x,
                 cap_y + cap_height,
                 "{}".format(
@@ -454,7 +450,7 @@ class OverlapChecker(object):
             bbox_props = dict(boxstyle="square,pad=0.3", fill=False, ec="b", lw=2)
             sub_font = {"fontname": "Arial"}
             pad = sub_height / 4
-            ax.text(
+            sub_box = ax.text(
                 50,
                 (sub_y + (sub_height - pad)),
                 "{}".format(
@@ -469,7 +465,15 @@ class OverlapChecker(object):
 
             plt.tight_layout()
             plt.subplots_adjust(bottom=0.25)
-            fig.savefig("results/{}_overlap_{}.png".format(os.path.splitext(self.scc)[0], index_o), dpi=120)
+
+            # Check collisions
+            renderer = fig.canvas.get_renderer()
+            cb = cap_box.get_window_extent(renderer=renderer)
+            # print(cb.width, cb.height)
+            sb = sub_box.get_window_extent(renderer=renderer)
+            # print(sb.width, sb.height)
+
+            # fig.savefig("results/{}_overlap_{}.png".format(os.path.splitext(self.scc)[0], index_o), dpi=120)
             plt.show()
 
 
