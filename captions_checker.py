@@ -181,6 +181,15 @@ class OverlapChecker(object):
 
         for p in html_obj.find_all("p"):
 
+            # DEBUG
+            # if p["begin"] == "01:23:28:19":
+            #     # convert framerate
+            #     print("Begin:", p["begin"])
+            #     start_converted = self.convert_timecode(p["begin"], 23.98, 23.98)
+            #     print("Converted:", start_converted)
+            #     start_time = self.fps_to_seconds(start_converted, 29.97)
+            #     print("Seconds:", start_time)
+
             # convert timecode to seconds
             start_time = self.fps_to_seconds(p["begin"], 23.976)
             stop_time = self.fps_to_seconds(p["end"], 23.976)
@@ -412,7 +421,6 @@ class OverlapChecker(object):
             ))
             cap_text = cap[3]
             sub_text = sub[3]
-
             plt.annotate(
                 "Caption:\n{}\nSubtitle:\n{}".format(
                     cap_text, sub_text
@@ -431,7 +439,7 @@ class OverlapChecker(object):
 
             # draw caption
             bbox_props = dict(boxstyle="square,pad=0", fill=True, color="black", alpha=0.5, zorder=80)
-            cap_font = {"fontname": "DejaVu Sans Mono"}
+            # cap_font = {"fontname": "DejaVu Sans Mono"}
             cap_box = ax.text(
                 cap_x,
                 cap_y + cap_height,
@@ -443,12 +451,13 @@ class OverlapChecker(object):
                 zorder=100,
                 color="white",
                 bbox=bbox_props,
-                **cap_font
+                family="sans-serif"
+                # **cap_font
             )
 
             # draw subtitle
-            bbox_props = dict(boxstyle="square,pad=0.3", fill=False, ec="b", lw=2)
-            sub_font = {"fontname": "Arial"}
+            bbox_props = dict(boxstyle="square,pad=0", fill=False, ec="r", lw=2)
+            # sub_font = {"fontname": "DejaVu Sans"}
             pad = sub_height / 4
             sub_box = ax.text(
                 50,
@@ -459,22 +468,141 @@ class OverlapChecker(object):
                 ha="center",
                 size=10,
                 zorder=60,
-                # bbox=bbox_props,
-                **sub_font
+                bbox=bbox_props,
+                family="monospace"
+                # **sub_font
             )
 
             plt.tight_layout()
             plt.subplots_adjust(bottom=0.25)
 
-            # Check collisions
+            """
+            Check collisions
+            """
             renderer = fig.canvas.get_renderer()
             cb = cap_box.get_window_extent(renderer=renderer)
-            # print(cb.width, cb.height)
             sb = sub_box.get_window_extent(renderer=renderer)
-            # print(sb.width, sb.height)
 
+            # textboxes dimensions
+            cb_origin, cb_extent = cb.get_points()
+            cb_x0 = cb_origin[0]
+            cb_y0 = cb_origin[1]
+            cb_x1 = cb_extent[0]
+            cb_y1 = cb_extent[1]
+
+            sb_origin, sb_extent = sb.get_points()
+            sb_x0 = sb_origin[0]
+            sb_y0 = sb_origin[1]
+            sb_x1 = sb_extent[0]
+            sb_y1 = sb_extent[1]
+
+            """
+            Collision detection algorithm
+            """
+            # cap on sub
+            cap_over = []
+
+            if cb_x0 >= sb_x0:
+                if cb_y0 >= sb_y0:
+                    if cb_x0 <= sb_x1:
+                        if cb_y0 >= sb_y1:
+                            cap_over.append("Top Left")
+
+            if cb_x1 >= sb_x0:
+                if cb_y0 >= sb_y0:
+                    if cb_x1 <= sb_x1:
+                        if cb_y0 >= sb_y1:
+                            cap_over.append("Top Right")
+
+            if cb_x0 >= sb_x0:
+                if cb_y1 >= sb_y0:
+                    if cb_x0 <= sb_x1:
+                        if cb_y1 >= sb_y1:
+                            cap_over.append("Bottom Left")
+
+            if cb_x1 >= sb_x0:
+                if cb_y1 >= sb_y0:
+                    if cb_x1 <= sb_x1:
+                        if cb_y1 >= sb_y1:
+                            cap_over.append("Bottom Right")
+
+            # sub on cap
+            sub_over = []
+
+            if sb_x0 >= cb_x0:
+                if sb_y0 >= cb_y0:
+                    if sb_x0 <= cb_x1:
+                        if sb_y0 <= cb_y1:
+                            sub_over.append(
+                                (
+                                    "Top Left\n",
+                                    "Caption:\n", cb_x0, cb_y0, cb_x1, cb_y1,
+                                    "Subtitle:\n", sb_x0, sb_y0, sb_x1, sb_y1
+                                )
+                            )
+
+            if sb_x1 >= cb_x0:
+                if sb_y0 >= cb_y0:
+                    if sb_x1 <= cb_x1:
+                        if sb_y0 <= cb_y1:
+                            sub_over.append(
+                                (
+                                    "Top Right\n",
+                                    "Caption:\n", cb_x0, cb_y0, cb_x1, cb_y1,
+                                    "Subtitle:\n", sb_x0, sb_y0, sb_x1, sb_y1
+                                )
+                            )
+
+            if sb_x0 >= cb_x0:
+                if sb_y1 >= cb_y0:
+                    if sb_x0 <= cb_x1:
+                        if sb_y1 >= cb_y1:
+                            sub_over.append(
+                                (
+                                    "Bottom Left\n",
+                                    "Caption:\n", cb_x0, cb_y0, cb_x1, cb_y1,
+                                    "Subtitle:\n", sb_x0, sb_y0, sb_x1, sb_y1
+                                )
+                            )
+
+            if sb_x1 >= cb_x0:
+                if sb_y1 >= cb_y0:
+                    if sb_x1 <= cb_x1:
+                        if sb_y1 <= cb_y1:
+                            sub_over.append(
+                                (
+                                    "Bottom Right\n",
+                                    "Caption:\n", cb_x0, cb_y0, cb_x1, cb_y1,
+                                    "Subtitle:\n", sb_x0, sb_y0, sb_x1, sb_y1
+                                )
+                            )
+
+            # output results
+            if cap_over:
+                print(
+                    "Caption corners overlapping subtitle:",
+                    [
+                        t for t in
+                        [
+                            tup for tup in cap_over
+                        ]
+                    ]
+                )
+            if sub_over:
+                print(
+                    "Subtitle corners overlapping caption:",
+                    [
+                        t for t in
+                        [
+                            tup for tup in sub_over
+                        ]
+                    ]
+                )
+
+            if cap_over or sub_over:
+                print(cap_text, "\n", sub_text, "\n")
+                plt.show()
             # fig.savefig("results/{}_overlap_{}.png".format(os.path.splitext(self.scc)[0], index_o), dpi=120)
-            plt.show()
 
 
 def main():
