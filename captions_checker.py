@@ -10,6 +10,8 @@ import datetime
 import os
 
 import pandas as pd
+import matplotlib
+matplotlib.use("qt5agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import lxml.etree as etree
@@ -384,9 +386,10 @@ class OverlapChecker(object):
         #     )
         #     ax.add_patch(rect)
         #     plt.show()
-
+        plt.ioff()
         for index_o, (cap, sub) in enumerate(self.overlaps, start=1):
-            fig, ax = plt.subplots(1, figsize=(9, 6), dpi=80)
+            fig = plt.figure(figsize=(9, 6), dpi=80)
+            ax = fig.add_subplot(1, 1, 1)
             plt.axis([0, 100, 100, 0], clip_on=False)
     
             # caption region
@@ -468,7 +471,7 @@ class OverlapChecker(object):
                 ha="center",
                 size=10,
                 zorder=60,
-                bbox=bbox_props,
+                # bbox=bbox_props,
                 family="monospace"
                 # **sub_font
             )
@@ -505,25 +508,25 @@ class OverlapChecker(object):
             if cb_x0 >= sb_x0:
                 if cb_y0 >= sb_y0:
                     if cb_x0 <= sb_x1:
-                        if cb_y0 >= sb_y1:
+                        if cb_y0 <= sb_y1:
                             cap_over.append("Top Left")
 
             if cb_x1 >= sb_x0:
                 if cb_y0 >= sb_y0:
                     if cb_x1 <= sb_x1:
-                        if cb_y0 >= sb_y1:
+                        if cb_y0 <= sb_y1:
                             cap_over.append("Top Right")
 
             if cb_x0 >= sb_x0:
                 if cb_y1 >= sb_y0:
                     if cb_x0 <= sb_x1:
-                        if cb_y1 >= sb_y1:
+                        if cb_y1 <= sb_y1:
                             cap_over.append("Bottom Left")
 
             if cb_x1 >= sb_x0:
                 if cb_y1 >= sb_y0:
                     if cb_x1 <= sb_x1:
-                        if cb_y1 >= sb_y1:
+                        if cb_y1 <= sb_y1:
                             cap_over.append("Bottom Right")
 
             # sub on cap
@@ -533,75 +536,40 @@ class OverlapChecker(object):
                 if sb_y0 >= cb_y0:
                     if sb_x0 <= cb_x1:
                         if sb_y0 <= cb_y1:
-                            sub_over.append(
-                                (
-                                    "Top Left\n",
-                                    "Caption:\n", cb_x0, cb_y0, cb_x1, cb_y1,
-                                    "Subtitle:\n", sb_x0, sb_y0, sb_x1, sb_y1
-                                )
-                            )
+                            sub_over.append("Top Left")
 
             if sb_x1 >= cb_x0:
                 if sb_y0 >= cb_y0:
                     if sb_x1 <= cb_x1:
                         if sb_y0 <= cb_y1:
-                            sub_over.append(
-                                (
-                                    "Top Right\n",
-                                    "Caption:\n", cb_x0, cb_y0, cb_x1, cb_y1,
-                                    "Subtitle:\n", sb_x0, sb_y0, sb_x1, sb_y1
-                                )
-                            )
+                            sub_over.append("Top Right")
 
             if sb_x0 >= cb_x0:
                 if sb_y1 >= cb_y0:
                     if sb_x0 <= cb_x1:
-                        if sb_y1 >= cb_y1:
-                            sub_over.append(
-                                (
-                                    "Bottom Left\n",
-                                    "Caption:\n", cb_x0, cb_y0, cb_x1, cb_y1,
-                                    "Subtitle:\n", sb_x0, sb_y0, sb_x1, sb_y1
-                                )
-                            )
+                        if sb_y1 <= cb_y1:
+                            sub_over.append("Bottom Left")
 
             if sb_x1 >= cb_x0:
                 if sb_y1 >= cb_y0:
                     if sb_x1 <= cb_x1:
                         if sb_y1 <= cb_y1:
-                            sub_over.append(
-                                (
-                                    "Bottom Right\n",
-                                    "Caption:\n", cb_x0, cb_y0, cb_x1, cb_y1,
-                                    "Subtitle:\n", sb_x0, sb_y0, sb_x1, sb_y1
-                                )
-                            )
+                            sub_over.append("Bottom Right")
 
             # output results
-            if cap_over:
-                print(
-                    "Caption corners overlapping subtitle:",
-                    [
-                        t for t in
-                        [
-                            tup for tup in cap_over
-                        ]
-                    ]
-                )
-            if sub_over:
-                print(
-                    "Subtitle corners overlapping caption:",
-                    [
-                        t for t in
-                        [
-                            tup for tup in sub_over
-                        ]
-                    ]
-                )
-
             if cap_over or sub_over:
+
+                if cap_over:
+                    print("Caption corners overlapping subtitle:", cap_over)
+                if sub_over:
+                    print("Subtitle corners overlapping caption:", sub_over)
+
                 print(cap_text, "\n", sub_text, "\n")
                 plt.show()
+
+            plt.close("all")
+
+
             # fig.savefig("results/{}_overlap_{}.png".format(os.path.splitext(self.scc)[0], index_o), dpi=120)
 
 
